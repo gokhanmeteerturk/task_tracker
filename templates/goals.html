@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="list-group">
+    {% for goal in goals %}
+    <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ goal.description }}</h5>
+            <div>
+                <a href="/goals/{{ goal.id }}/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+                <form action="/goals/{{ goal.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this goal and all its tasks?');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        <p class="mb-1">
+            <strong>Platform:</strong> {{ goal.platform_name }}
+        </p>
+        <small class="text-muted">
+            <strong>Scope:</strong> 
+            {% if goal.account_ids %}
+                {{ goal.account_ids|length }} Specific Account(s)
+            {% else %}
+                Platform-Level
+            {% endif %}
+
+            {% if goal.account_ids and goal.account_ids|length > 1 %}
+                <span class="ms-2">|</span> 
+                <strong>Distribution:</strong> 
+                {% if goal.task_distribution_strategy == 'round_robin' %}
+                    Round Robin
+                {% else %}
+                    All at Once
+                {% endif %}
+            {% endif %}
+
+            {% if goal.policy.__class__.__name__ == 'FixedInterval' %}
+                <span class="ms-2">|</span>
+                <strong>Catch-up:</strong>
+                {% if goal.catchup_strategy == 'latest' %}
+                    Latest Only
+                {% else %}
+                    All Missed
+                {% endif %}
+            {% endif %}
+        </small>
+    </div>
+    {% else %}
+    <p>No goals found. <a href="/goals/add">Create one now!</a></p>
+    {% endfor %}
+</div>
+{% endblock %}

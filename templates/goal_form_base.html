@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+{% block innercontent %}{% endblock %}
+
+<!-- Bootstrap Modal Dialog -->
+<div class="modal fade" id="pythonExampleModal" tabindex="-1" aria-labelledby="pythonExampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pythonExampleModalLabel">Python Code Example</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Execution scripts can access task information and other data through environment variables. Here is a basic example to get you started:</p>
+                <div id="python-example-editor" style="height:calc(100vh - 280px);border:1px solid #ccc;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showPythonExampleDialog() {
+        var modal = new bootstrap.Modal(document.getElementById('pythonExampleModal'));
+        modal.show();
+        setTimeout(function() {
+                if (!window.pythonExampleEditor && window.monaco) {
+                        window.pythonExampleEditor = monaco.editor.create(
+                                document.getElementById('python-example-editor'),
+                                {
+                                        value: `import os
+import json
+from datetime import date
+
+# 1. Access the data you need through TASK_CONTEXT:
+context_json = os.environ.get('TASK_CONTEXT')
+context = json.loads(context_json)
+
+task_data = context.get('task')
+account_data = context.get('account')
+goal_data = context.get('goal')
+platform_data = context.get('platform')
+
+# 2. Example Usage:
+
+# You can print for debugging. This output will be saved in the task logs.
+print(f"Running script for Task ID: {task_data.get('id')}")
+print(f"Platform: {platform_data.get('name')}")
+
+if account_data:
+    print(f"Operating on account: {account_data.get('username')}")
+else:
+    print("This is a platform-level task.")
+
+print(f"Goal Description: {goal_data.get('description')}")
+print(f"Task Due Date: {task_data.get('due_date')}")
+
+# If this is a check script, you might perform a check and then print SUCCESS
+# For example, pretend we checked an API and the condition is met.
+is_condition_met = True
+
+print("--- Script End ---")
+
+# 4. For CHECK scripts, print "SUCCESS" on a new line if the check passes.
+#    For EXECUTION scripts, this line is not necessary for success.
+if is_condition_met:
+    print("SUCCESS")
+`,
+                                        language: 'python',
+                                        theme: 'vs-dark',
+                                        automaticLayout: true,
+                                        minimap: { enabled: false }
+                                }
+                        );
+                } else if (window.pythonExampleEditor) {
+                        window.pythonExampleEditor.layout();
+                }
+        }, 300);
+}
+</script>
+
+{% endblock %}

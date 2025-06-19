@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        {% for platform in platforms %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">{{ platform.name }}</h4>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for account in platform.accounts %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ account.username }}</h5>
+                        <small>Last Activity: {{ account.last_activity or 'Never' }}</small>
+                    </div>
+                    {% set total_tasks = account.waiting_count + account.in_progress_count + account.failed_count + account.skipped_count %}
+                    <div class="mt-1 small">
+                        {% if total_tasks == 0 %}
+                            <span class="text-muted">No pending tasks.</span>
+                        {% else %}
+                            {% if account.waiting_count > 0 %}<span class="badge bg-warning text-dark me-1">Waiting: {{ account.waiting_count }}</span>{% endif %}
+                            {% if account.in_progress_count > 0 %}<span class="badge bg-info text-dark me-1">In Progress: {{ account.in_progress_count }}</span>{% endif %}
+                            {% if account.failed_count > 0 %}<span class="badge bg-danger me-1">Failed: {{ account.failed_count }}</span>{% endif %}
+                            {% if account.skipped_count > 0 %}<span class="badge bg-secondary me-1">Skipped: {{ account.skipped_count }}</span>{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="list-group-item">No accounts found for this platform.</div>
+                {% endfor %}
+            </div>
+            <div class="card-footer">
+                <a href="/platforms/{{ platform.id }}/accounts" class="btn btn-secondary btn-sm">Manage Accounts</a>
+            </div>
+        </div>
+        {% else %}
+        <p>No platforms found. Please <a href="/platforms">add a platform</a> to get started.</p>
+        {% endfor %}
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-body pb-2 pt-2">
+                <h3 class="h5 mb-3">Services</h3>
+                <div id="services-sidebar">
+                    {% for key, service in services.items() %}
+                    <div class="card mb-2 service-card" id="service-{{ key }}">
+                        <div class="card-header d-flex align-items-center justify-content-between py-2 px-3">
+                            <div class="d-flex align-items-center">
+                                <span class="status-dot me-2" id="dot-{{ key }}" style="width:12px;height:12px;display:inline-block;border-radius:50%;background:#ccc;"></span>
+                                <span class="fw-semibold">{{ service.name }}</span>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary refresh-btn" title="Refresh" data-service="{{ key }}"><span>&#x21bb;</span></button>
+                                <button class="btn btn-sm btn-outline-success start-btn d-none" data-service="{{ key }}">START</button>
+                            </div>
+                        </div>
+                        <div class="card-body py-2 px-3" id="details-{{ key }}" style="font-size:0.95em;">
+                        </div>
+                        <div class="card-footer py-2 px-3 text-end">
+                            <a href="{{ service.home_url }}" target="_blank" class="btn btn-sm btn-primary">OPEN</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+const SERVICES = {{ services|tojson }};
+function setStatus(key, status, details) {
+    const dot = document.getElementById('dot-' + key);
+    const startBtn = document.querySelector('#service-' + key + ' .start-btn');
+    const detailsDiv = document.getElementById('details-' + key);
+    if (status === 'offline') {
+        dot.style.background = '#dc3545';
+        startBtn.classList.remove('d-none');
+        detailsDiv.innerHTML = '<span class="text-danger">Offline</span>';
+    } else if (status === 'not_running') {
+        dot.style.background = '#fd7e14';
+        startBtn.classList.add('d-none');
+        detailsDiv.innerHTML = '<span class="text-warning">Online, not running</span>';
+        if (details && details.interval !== undefined && details.interval) {
+            detailsDiv.innerHTML += `<br>interval: ${details.interval} minutes`;
+            if (details.last_run) {
+                detailsDiv.innerHTML += `<br>last run: ${timeAgo(details.last_run)}`;
+            }
+        }
+    } else if (status === 'running') {
+        dot.style.background = '#198754';
+        startBtn.classList.add('d-none');
+        detailsDiv.innerHTML = '<span class="text-success">Running</span>';
+        if (details && details.interval !== undefined) {
+            detailsDiv.innerHTML += `<br>interval: ${details.interval} minutes`;
+            if (details.last_run) {
+                detailsDiv.innerHTML += `<br>last run: ${timeAgo(details.last_run)}`;
+            }
+        }
+    }
+}
+function fetchStatus(key) {
+    const service = SERVICES[key];
+    fetch(service.status_url, {timeout: 1000})
+        .then(r => r.json())
+        .then(data => {
+            if (key === 'bluesky') {
+                if (data.running) setStatus(key, 'running', data);
+                else setStatus(key, 'not_running', data);
+            } else if (key === 'reddit') {
+                if (data.running) setStatus(key, 'running');
+                else setStatus(key, 'not_running');
+            }
+        })
+        .catch(() => setStatus(key, 'offline'));
+}
+function timeAgo(iso) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 60000);
+    if (diff < 1) return "just now";
+    if (diff === 1) return "1 minute ago";
+    return diff + " minutes ago";
+}
+function refreshAll() {
+    for (const key in SERVICES) fetchStatus(key);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial fetch
+    refreshAll();
+    // 10s after load
+    setTimeout(refreshAll, 10000);
+    // Every 3 minutes
+    setInterval(refreshAll, 180000);
+    // Refresh buttons
+    document.querySelectorAll('.refresh-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            fetchStatus(this.dataset.service);
+        });
+    });
+    // Start buttons
+    document.querySelectorAll('.start-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const key = this.dataset.service;
+            btn.disabled = true;
+            fetch(`/services/${key}/start`, {method: 'POST'})
+                .then(r => r.json())
+                .then(() => setTimeout(() => fetchStatus(key), 2000))
+                .finally(() => btn.disabled = false);
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/platforms/{{ platform.id }}/edit" method="post" id="edit-platform-form">
+    <div class="mb-3">
+        <label for="name" class="form-label">Platform Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ platform.name }}" required>
+    </div>
+    <div class="mb-3">
+                        <label for="config" class="form-label">Config (JSON)</label>
+                <small class="form-text text-muted">Enter any key-value pairs as JSON.</small>
+                <div id="config-editor-container" class="editor-container">
+                <div class="editor-header d-flex justify-content-between align-items-center mb-1">
+                    <label for="config" class="form-label mb-0">Config (JSON)</label>
+                    <button type="button" class="btn btn-sm btn-secondary float-end fs-button" onclick="toggleFullscreen('config-editor-container')"></button>
+                </div>
+                <textarea class="d-none" id="config" name="config">{{ platform.config | tojson(indent=2) }}</textarea>
+                    <div id="config-editor" style="border:1px solid #2a2f32;"></div>
+                </div>
+
+    </div>
+    <button type="submit" class="btn btn-success">Save Changes</button>
+    <a href="/platforms" class="btn btn-secondary ms-2">Cancel</a>
+</form>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs/loader.js"></script>
+<input type="color" id="color-picker" style="position:absolute;display:none;z-index:1000;" />
+<script>
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+        var configTextarea = document.getElementById('config');
+        var initialValue = configTextarea.value || '{\n    "color": "#124525"\n}';
+        var editor = monaco.editor.create(document.getElementById('config-editor'), {
+            value: initialValue,
+            language: 'json',
+            automaticLayout: true,
+            theme: 'vs-dark',
+            minimap: { enabled: false }
+        });
+        window.configMonacoEditor = editor;
+        const colorRegex = /"#([0-9a-fA-F]{6,8})"/g;
+        let decorations = [];
+        function updateDecorations() {
+            const model = editor.getModel();
+            const matches = [];
+            const lines = model.getLineCount();
+            for (let line = 1; line <= lines; line++) {
+                const text = model.getLineContent(line);
+                let match;
+                while ((match = colorRegex.exec(text)) !== null) {
+                    const start = match.index + 1; // skip opening quote
+                    const end = start + match[1].length + 1; // include the hash
+                    matches.push({
+                        range: new monaco.Range(line, start, line, end),
+                        options: {
+                            inlineClassName: 'color-swatch',
+                            before: {
+                                content: ' ',
+                                inlineClassName: 'color-decorator',
+                                width: '12px',
+                                height: '12px',
+                                backgroundColor: `#${match[1].slice(0, 6)}`,
+                                margin: '0 6px 0 0',
+                            }
+                        }
+                    });
+                }
+            }
+            decorations = editor.deltaDecorations(decorations, matches);
+        }
+        updateDecorations();
+        editor.onDidChangeModelContent(updateDecorations);
+        const colorPicker = document.getElementById('color-picker');
+        editor.onMouseUp((e) => {
+            const position = e.target.position;
+            if (!position) return;
+            const model = editor.getModel();
+            const word = model.getWordAtPosition(position);
+            if (!word) return;
+            const fullRange = new monaco.Range(
+                position.lineNumber,
+                word.startColumn,
+                position.lineNumber,
+                word.endColumn
+            );
+            const wordText = model.getValueInRange(fullRange);
+            if (!/^#[0-9a-fA-F]{6,8}$/.test(wordText)) return;
+            setTimeout(() => {
+                const coords = editor.getScrolledVisiblePosition(position);
+                if (!coords) return;
+                const editorDom = editor.getDomNode();
+                const editorRect = editorDom.getBoundingClientRect();
+                colorPicker.style.left = `${editorRect.left + coords.left}px`;
+                colorPicker.style.top = `${editorRect.top + coords.top + coords.height}px`;
+                colorPicker.value = wordText.slice(0, 7);
+                colorPicker.style.display = 'block';
+                colorPicker.oninput = () => {
+                    editor.executeEdits(null, [{
+                        range: fullRange,
+                        text: colorPicker.value
+                    }]);
+                    updateDecorations();
+                };
+            }, 0);
+        });
+        document.addEventListener('click', (e) => {
+            if (e.target !== colorPicker) {
+                colorPicker.style.display = 'none';
+            }
+        });
+        document.getElementById('edit-platform-form').addEventListener('submit', function(e) {
+            configTextarea.value = editor.getValue();
+            try {
+                JSON.parse(editor.getValue());
+            } catch (err) {
+                e.preventDefault();
+                alert('Config is not valid JSON. Please correct it before submitting.');
+                return false;
+            }
+        });
+    });
+    function toggleFullscreen(containerId) {
+        const container = document.getElementById(containerId);
+        container.classList.toggle('fullscreen');
+        document.body.classList.toggle('editor-fullscreen');
+        const editorDiv = container.querySelector('.monaco-editor');
+        if (editorDiv && window.configMonacoEditor) {
+            setTimeout(function() { window.configMonacoEditor.layout(); }, 300);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  task_tracker:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./db:/app/db  # Persist the SQLite DB
+      - ./static:/app/static
+      - ./templates:/app/templates
+    environment:
+      - TZ=Europe/Istanbul
+    restart: unless-stopped

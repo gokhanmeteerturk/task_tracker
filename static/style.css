@@ -1,0 +1,83 @@
+body {
+    background-color: #f8f9fa;
+}
+body.editor-fullscreen{
+    overflow: hidden;
+}
+.editor-container {
+    position: relative;
+    border: 4px solid #2a2f32;
+    background: #363d41;
+    color: white;
+    padding: 8px;
+    border-radius: 6px !important;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+}
+.color-border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 8px;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+.fs-button::before{
+    content: "Fullscreen";
+}
+.editor-container.fullscreen .fs-button::before {
+    content: "Exit Fullscreen";
+}
+.editor-container.fullscreen {
+    border-radius:0px !important;
+    position: fixed !important;
+    z-index: 9999;
+    border: none !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #363d41;
+    padding: 8px 8px 8px 60px;
+    margin: 0;
+}
+.editor-container .monaco-editor {
+    height:300px !important;
+}
+.editor-header {
+    margin-bottom: 6px;
+}
+.editor-container.fullscreen .monaco-editor {
+    height: calc(100vh - 80px) !important;
+}
+.list-group-item.completed, .list-group-item.skipped, .list-group-item.failed {
+    background: #c7e9c6;
+    max-height: 44px;
+    overflow: hidden;
+    transition: max-height 1.5s ease-in-out;
+}
+#tasks-list .list-group-item{
+    border-radius: 6px;
+}
+.list-group-item.skipped{
+    background: #c6e0e9;
+}
+.list-group-item.failed {
+    background: #e9c6c9;
+}
+.list-group-item.completed > div > *, .list-group-item.skipped > div > *, .list-group-item.failed > div > * {
+    opacity: 0.6;
+}
+.list-group-item.completed>div:first-child::before, .list-group-item.skipped>div:first-child::before, .list-group-item.failed>div:first-child::before {
+    content: "✅";
+    margin-right: 8px;
+    font-size: 18px;
+    font-weight: bold;
+}
+.list-group-item.skipped>div:first-child::before{
+    content: "⏭️";
+}
+.list-group-item.failed>div:first-child::before {
+    content: "❌";
+}
+.list-group-item.completed:hover, .list-group-item.skipped:hover, .list-group-item.failed:hover {
+    max-height: 500px;
+    transition: max-height 0.3s 0.3s ease-in-out;
+}

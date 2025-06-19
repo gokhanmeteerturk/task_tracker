@@ -1,0 +1,402 @@
+{% extends "goal_form_base.html" %}
+{% block innercontent %}
+<form action="/goals/add" method="post" id="goal-form">
+    <div class="mb-3">
+        <label for="platform_id" class="form-label">Platform</label>
+        <select class="form-select" id="platform_id" name="platform_id" required>
+            <option value="" disabled selected>Select a platform...</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="description" class="form-label">Goal Description</label>
+        <input type="text" class="form-control" id="description" name="description" placeholder="e.g., Reach 1000 Karma" required>
+    </div>
+    <div class="mb-3">
+        <label for="start_date" class="form-label">Start Date</label>
+        <input type="date" class="form-control" id="start_date" name="start_date" required>
+    </div>
+    <hr>
+    <div class="mb-3">
+        <label for="goal_scope" class="form-label">Goal applies to:</label>
+        <select class="form-select" name="goal_scope" id="goal_scope">
+            <option value="platform">Entire Platform (e.g., creating new accounts)</option>
+            <option value="accounts">Specific Accounts (e.g., activity on existing accounts)</option>
+        </select>
+    </div>
+    <div class="mb-3" id="account-selection" style="display: none;">
+        <label for="account_ids" class="form-label">Select Accounts (Hold Ctrl/Cmd to select multiple)</label>
+        <select class="form-select" name="account_ids" id="account_ids" multiple size="4">
+        </select>
+        <small class="form-text text-muted">This list updates when you change the platform.</small>
+    </div>
+    <div id="task-distribution-options" class="mb-3" style="display: none;">
+        <label class="form-label">Task Distribution Strategy</label>
+        <div class="form-text text-muted">This option appears when you select more than one account.</div>
+        <div class="mt-2">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="task_distribution_strategy" id="distribute-all" value="all" checked>
+                <label class="form-check-label" for="distribute-all">
+                    <strong>All At Once</strong>: Create a task for <u>every</u> selected account when the interval is met.
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="task_distribution_strategy" id="distribute-round-robin" value="round_robin">
+                <label class="form-check-label" for="distribute-round-robin">
+                    <strong>Round Robin</strong>: Create a task for <u>one</u> selected account at a time, looping through the list.
+                </label>
+            </div>
+        </div>
+    </div>
+    <hr>
+
+    <div class="mb-3">
+        <label class="form-label">Scheduling Policy</label>
+        <select class="form-select" name="policy_type" id="policy_type" required>
+            <option value="fixed">Fixed Interval</option>
+            <option value="deadline">Deadline Distribution</option>
+            <option value="state_based">State-Based Goal</option>
+            </select>
+    </div>
+
+    <div id="fixed-fields">
+        <div class="mb-3">
+            <label for="interval_days" class="form-label">Repeat Every (Days)</label>
+            <input type="number" class="form-control" id="interval_days" name="interval_days" value="7" min="1">
+        </div>
+
+        <div class="mt-4">
+            <label class="form-label">Missed Task Catch-up Strategy</label>
+            <div class="form-text text-muted mb-2">How should the app handle a backlog of recurring tasks?</div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="catchup_strategy" id="catchup-all" value="all" checked>
+                <label class="form-check-label" for="catchup-all">
+                    <strong>Backlog:</strong> Create all missed tasks.
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="catchup_strategy" id="catchup-latest" value="latest">
+                <label class="form-check-label" for="catchup-latest">
+                    <strong>Latest:</strong> Create only the single most recent task.
+                </label>
+            </div>
+        </div>
+        </div>
+
+    <div id="deadline-fields" style="display: none;">
+        <div class="mb-3">
+            <label for="deadline_date" class="form-label">Final Deadline</label>
+            <input type="date" class="form-control" id="deadline_date" name="deadline_date">
+        </div>
+        <div class="mb-3">
+            <label for="total_occurrences" class="form-label">Total Occurrences to Reach Deadline</label>
+            <input type="number" class="form-control" id="total_occurrences" name="total_occurrences" value="5" min="1">
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="freeze_on_miss" name="freeze_on_miss" value="true">
+            <label class="form-check-label" for="freeze_on_miss">Freeze schedule if task is missed?</label>
+        </div>
+    </div>
+
+    <div id="state-based-fields" style="display: none;">
+        <div class="mb-3">
+            <label for="check_interval_days" class="form-label">Check Every (Days)</label>
+            <input type="number" class="form-control" id="check_interval_days" name="check_interval_days" value="1" min="1">
+            <div class="form-text text-muted">A 'State-Based' goal creates periodic check tasks. It requires an end date and is best paired with a 'Custom Script Check' to verify if the state has been achieved.</div>
+        </div>
+        <div class="mb-3">
+             <label for="state_based_deadline_date" class="form-label">Goal End Date</label>
+             <input type="date" class="form-control" id="state_based_deadline_date" name="state_based_deadline_date">
+        </div>
+    </div>
+    <hr>
+    <div class="mb-3">
+        <label for="execution_strategy" class="form-label">Execution Strategy</label>
+        <select class="form-select" id="execution_strategy" name="execution_strategy">
+            <option value="Manual" selected>Manual</option>
+            <option value="CustomScript">Custom Script</option>
+        </select>
+    </div>
+    <div id="custom-script-fields" style="display: none;">
+        <div class="mb-3">
+            <label for="execution_script_content" class="form-label">Python Script</label>
+            <div id="editor_execution_script_content_container" class="editor-container">
+                <div class="editor-header">
+                    <label for="execution_script_content" class="form-label">Python Script</label>
+                    <button type="button" class="btn btn-sm btn-secondary float-end ms-1" onclick="showPythonExampleDialog();">?</button>
+                    <button type="button" class="btn btn-sm btn-secondary float-end fs-button" onclick="toggleFullscreen('editor_execution_script_content_container')"></button>
+                </div>
+                <textarea class="form-control d-none" id="execution_script_content" name="execution_script_content" rows="10" placeholder="Enter your Python script here..."></textarea>
+                <div id="editor_execution_script_content" style="border:1px solid #2a2f32;"></div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="execution_script_env_vars" class="form-label">Environment Variables (Optional)</label><br/>
+            <small class="form-text text-muted">One for each line, like this:</small><br/>
+            <small class="form-text text-muted">KEY=VALUE</small><br/>
+            <small class="form-text text-muted">ANOTHER_KEY=ANOTHER_VALUE</small><br/>
+            <textarea class="form-control d-none" id="execution_script_env_vars" name="execution_script_env_vars" rows="3" placeholder="KEY=VALUE&#10;ANOTHER_KEY=ANOTHER_VALUE"></textarea>
+            <div class="editor-container">
+                <div id="editor_execution_script_env_vars" style="border:1px solid #2a2f32;"></div>
+            </div>
+        </div>
+    </div>
+    <hr>
+    <div class="mb-3">
+        <label for="check_strategy" class="form-label">Check Strategy</label>
+        <select class="form-select" id="check_strategy" name="check_strategy">
+            <option value="ManualCheck" selected>Manual Check</option>
+            <option value="CustomScriptCheck">Custom Script Check</option>
+        </select>
+    </div>
+    <div id="custom-check-script-fields" style="display: none;">
+        <div class="mb-3">
+            <label for="check_script_content" class="form-label">Check Script</label>
+            <p class="form-text text-muted">A check script must print "SUCCESS" to the console on completion to be considered complete.</p>
+            <div id="editor_check_script_content_container" class="editor-container">
+                <div class="editor-header">
+                    <label for="check_script_content" class="form-label">Check Script</label>
+                    <button type="button" class="btn btn-sm btn-secondary float-end ms-1" onclick="showPythonExampleDialog();">?</button>
+                    <button type="button" class="btn btn-sm btn-secondary float-end fs-button" onclick="toggleFullscreen('editor_check_script_content_container')"></button>
+                </div>
+                <textarea class="form-control d-none" id="check_script_content" name="check_script_content" rows="10" placeholder="Enter your check script here..."></textarea>
+                <div id="editor_check_script_content" style="border:1px solid #2a2f32;"></div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="check_script_env_vars" class="form-label">Environment Variables (Optional)</label><br/>
+            <small class="form-text text-muted">One for each line, like this:</small><br/>
+            <small class="form-text text-muted">KEY=VALUE</small><br/>
+            <small class="form-text text-muted">ANOTHER_KEY=ANOTHER_VALUE</small><br/>
+            <textarea class="form-control d-none" id="check_script_env_vars" name="check_script_env_vars" rows="3" placeholder="KEY=VALUE&#10;ANOTHER_KEY=ANOTHER_VALUE"></textarea>
+            <div class="editor-container">
+                <div id="editor_check_script_env_vars" style="border:1px solid #2a2f32;"></div>
+            </div>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Create Goal</button>
+</form>
+
+
+<script>
+
+    custom_check_default_textarea_content = `#!/usr/bin/env python
+#
+# This is a placeholder check script for the Task Tracker application.
+#
+# It demonstrates how to:
+#  1. Read environment variables set from the UI.
+#  2. Print log messages for debugging.
+#  3. Signal a successful check to the application.
+#
+# CONVENTION:
+# To mark the task as 'Completed', this script MUST print the exact
+# string "SUCCESS" to standard output on a new line. Any other output will be
+# treated as a log message, and the check will be considered failed.
+#
+import os
+import sys
+from datetime import datetime
+
+def main():
+    """Main execution function for the script."""
+
+    print(f"[{datetime.utcnow().isoformat()}] Starting check script...")
+
+    # --- 1. Read Environment Variables ---
+    # Use os.getenv() to read variables you set in the goal's UI.
+    # It's good practice to provide a default value or handle cases where
+    # a variable might not be set.
+
+    api_key = os.getenv("API_KEY")
+    target_username = os.getenv("TARGET_USERNAME")
+
+    if not api_key or not target_username:
+        # You can write to standard error (stderr) for error messages.
+        # These will be captured in the application's logs.
+        print("Error: Required environment variables API_KEY or TARGET_USERNAME are not set.", file=sys.stderr)
+        # Exit with a non-zero status code to indicate an error.
+        sys.exit(1)
+
+    print(f"Script configured for target user: {target_username}")
+
+    # --- 2. Your Check Logic Goes Here ---
+    # This is where you would make an API call, scrape a webpage,
+    # or run any other logic to check if the goal's state has been met.
+
+    print("Performing the check...")
+
+    # Placeholder: Replace this with your actual condition.
+    # For example: if get_karma(target_username) >= 1000:
+    is_goal_achieved = False # <-- CHANGE THIS to True to simulate success.
+
+    # --- 3. Signal Success ---
+    if is_goal_achieved:
+        print("Condition met. Signaling success.")
+        # This is the most important line. It tells the Task Tracker
+        # that the check was successful and the task can be completed.
+        print("SUCCESS")
+    else:
+        print("Condition not yet met.")
+
+    print(f"[{datetime.utcnow().isoformat()}] Check script finished.")
+
+
+if __name__ == "__main__":
+    main()
+`;
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const platformsData = {{ platforms_json|safe }};
+
+        const platformSelect = document.getElementById('platform_id');
+        const accountSelect = document.getElementById('account_ids');
+        const goalScopeSelect = document.getElementById('goal_scope');
+        const accountSelectionDiv = document.getElementById('account-selection');
+        const policyTypeSelect = document.getElementById('policy_type');
+        const fixedFieldsDiv = document.getElementById('fixed-fields');
+        const deadlineFieldsDiv = document.getElementById('deadline-fields');
+        const executionStrategySelect = document.getElementById('execution_strategy');
+        const customScriptFieldsDiv = document.getElementById('custom-script-fields');
+        const checkStrategySelect = document.getElementById('check_strategy');
+        const customCheckScriptFieldsDiv = document.getElementById('custom-check-script-fields');
+        const stateBasedFieldsDiv = document.getElementById('state-based-fields');
+        // START: Get reference to the new div
+        const distributionOptionsDiv = document.getElementById('task-distribution-options');
+        // END: Get reference to the new div
+
+        function populateAccounts() {
+            const selectedPlatformId = platformSelect.value;
+            const selectedPlatform = platformsData.find(p => p.id == selectedPlatformId);
+            accountSelect.innerHTML = '';
+            if (selectedPlatform && selectedPlatform.accounts) {
+                selectedPlatform.accounts.forEach(acc => {
+                    const option = new Option(acc.username, acc.id);
+                    accountSelect.add(option);
+                });
+            }
+            updateUIVisibility();
+        }
+
+        // START: Consolidated UI visibility logic
+        function updateUIVisibility() {
+            // Logic for account selection section
+            const isAccountScope = goalScopeSelect.value === 'accounts';
+            accountSelectionDiv.style.display = isAccountScope ? 'block' : 'none';
+
+            // Logic for task distribution options
+            const selectedAccountsCount = document.querySelectorAll('#account_ids option:checked').length;
+            distributionOptionsDiv.style.display = (isAccountScope && selectedAccountsCount > 1) ? 'block' : 'none';
+        }
+        function togglePolicyFields() {
+            fixedFieldsDiv.style.display = 'none';
+            deadlineFieldsDiv.style.display = 'none';
+            stateBasedFieldsDiv.style.display = 'none';
+
+            if (this.value === 'fixed') {
+                fixedFieldsDiv.style.display = 'block';
+            } else if (this.value === 'deadline') {
+                deadlineFieldsDiv.style.display = 'block';
+            } else if (this.value === 'state_based') {
+                stateBasedFieldsDiv.style.display = 'block';
+            }
+        }
+
+        function toggleStrategyFields() {
+            customScriptFieldsDiv.style.display = this.value === 'CustomScript' ? 'block' : 'none';
+        }
+        function toggleCheckStrategyFields() {
+            customCheckScriptFieldsDiv.style.display = this.value === 'CustomScriptCheck' ? 'block' : 'none';
+            if( this.value === 'CustomScriptCheck' ) {
+                const checkScriptContent = document.getElementById('check_script_content');
+                checkScriptContent.value = custom_check_default_textarea_content;
+                const editorDiv = document.getElementById('editor_check_script_content');
+                if (window.editors && window.editors['check_script_content']) {
+                    window.editors['check_script_content'].editor.setValue(custom_check_default_textarea_content);
+                }
+            }
+            else {
+                const checkScriptContent = document.getElementById('check_script_content');
+                checkScriptContent.value = '';
+                const editorDiv = document.getElementById('editor_check_script_content');
+                if (window.editors && window.editors['check_script_content']) {
+                    window.editors['check_script_content'].editor.setValue('');
+                }
+            }
+        }
+
+        platformsData.forEach(p => {
+            const option = new Option(p.name, p.id);
+            platformSelect.add(option);
+        });
+
+        platformSelect.addEventListener('change', populateAccounts);
+        goalScopeSelect.addEventListener('change', updateUIVisibility);
+        accountSelect.addEventListener('change', updateUIVisibility);
+        policyTypeSelect.addEventListener('change', togglePolicyFields);
+        executionStrategySelect.addEventListener('change', toggleStrategyFields);
+        checkStrategySelect.addEventListener('change', toggleCheckStrategyFields);
+
+        // Initial calls to set the correct state on page load
+        populateAccounts();
+        togglePolicyFields.call(policyTypeSelect);
+        toggleStrategyFields.call(executionStrategySelect);
+
+        toggleCheckStrategyFields.call(checkStrategySelect);
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs/loader.js"></script>
+<script>
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs' } });
+
+    require(['vs/editor/editor.main'], function () {
+        window.editors = {};
+        function createEditor(textareaId, language = 'plaintext', height = 300) {
+            const textarea = document.getElementById(textareaId);
+            const div = document.getElementById('editor_' + textareaId);
+            const editor = monaco.editor.create(div, {
+                value: textarea.value,
+                language: language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false }
+            });
+            editors[textareaId] = { editor, textarea };
+        }
+
+        createEditor('execution_script_content', 'python');
+        createEditor('check_script_content', 'python');
+        createEditor('execution_script_env_vars', 'shell');  // KEY=VALUE format
+        createEditor('check_script_env_vars', 'shell');
+
+        document.getElementById('goal-form').addEventListener('submit', function () {
+            for (const key in editors) {
+                editors[key].textarea.value = editors[key].editor.getValue();
+            }
+        });
+    });
+</script>
+<script>
+function toggleFullscreen(containerId) {
+    console.log('Toggling fullscreen for:', containerId);
+    const container = document.getElementById(containerId);
+    container.classList.toggle('fullscreen');
+    document.body.classList.toggle('editor-fullscreen');
+
+    const editorDiv = container.querySelector('.monaco-editor');
+    if (editorDiv) {
+        const editorId = container.querySelector('div[id^="editor_"]').id;
+        const key = editorId.replace('editor_', '');
+        if (window.editors && window.editors[key]) {
+            setTimeout(() => {
+                window.editors[key].editor.layout();
+            }, 200);
+        }
+    }
+}
+</script>
+
+
+{% endblock %}

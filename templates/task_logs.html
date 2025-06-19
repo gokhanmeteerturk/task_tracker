@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Task History</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Task Details
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">{{ task.goal_description }}</h5>
+            <p class="card-text">
+                <strong>Platform:</strong> {{ task.platform_name }}<br>
+                <strong>Account:</strong> {{ task.account_username }}<br>
+                <strong>Due Date:</strong> {{ task.due_date.strftime('%Y-%m-%d') }}<br>
+                <strong>Current Status:</strong> <span class="badge bg-primary">{{ task.status.name }}</span>
+            </p>
+        </div>
+    </div>
+
+    <h2 class="h4">Logs</h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">Timestamp (UTC)</th>
+                    <th scope="col">From Status</th>
+                    <th scope="col">To Status</th>
+                    <th scope="col">Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ log.from_status }}</td>
+                    <td><span class="badge bg-secondary">{{ log.to_status }}</span></td>
+                    <td>{{ log.notes|default('N/A', true)|replace('\n', '<br>')|safe }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center">No logs found for this task.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <a href="/all-tasks" class="btn btn-secondary mt-3">Back to All Tasks</a>
+</div>
+{% endblock %}

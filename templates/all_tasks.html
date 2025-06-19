@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/tasks/generate-due" method="post" class="mb-3 d-inline">
+    <button type="submit" class="btn btn-outline-primary">
+        Generate Due Tasks Now
+    </button>
+</form>
+<button id="group-tasks-btn" class="btn btn-outline-secondary ms-2">Group by platform&amp;account</button>
+<div id="tasks-list" class="list-group mt-3">
+    {% for task in tasks %}
+    <div class="list-group-item list-group-item-action flex-column align-items-start mb-2{% if task.status.name == 'Completed' %} completed{% elif task.status.name == 'Waiting' %} waiting{% elif task.status.name == 'In Progress' %} in-progress{% elif task.status.name == 'Failed' %} failed{% elif task.status.name == 'Skipped' %} skipped{% endif %}"
+         data-platform="{{ task.platform_name or '' }}"
+         data-account="{{ task.account_username or '' }}">
+        <div class="d-flex align-items-center mb-1">
+            {% if task.account_username and task.account_username != "Platform-Level" %}
+                <span class="account-chip me-2" data-account="{{ task.account_username }}">{{ task.account_username }}</span>
+            {% else %}
+                <span class="platform-chip me-2"
+                      style="background-color:{{ task.goal.platform.config.color if task.goal is not none and task.goal.platform is not none and task.goal.platform.config and 'color' in task.goal.platform.config else '#bbb' }};">
+                    {{ task.platform_name }}
+                </span>
+            {% endif %}
+            <h5 class="mb-1">{{ task.goal_description or task.goal.description or task.goal.get_context_string() }}</h5>
+        </div>
+        {% if task.goal is not none and task.goal.platform is not none and task.goal.platform.config and 'color' in task.goal.platform.config %}
+        <div class="color-border" style="background-color:{{task.goal.platform.config.color}}"></div>
+        {% endif %}
+        <div class="d-flex w-100 justify-content-between">
+            <small class="text-muted">Due: {{ task.due_date.strftime('%Y-%m-%d') }}</small>
+        </div>
+        <p class="mb-1"><small class="text-muted">{{ task.goal_context or task.goal.get_context_string() }}</small></p>
+        <div class="d-flex w-100 justify-content-between align-items-center mt-2">
+            <div>
+                <small>Status:
+                    <span class="badge {% if task.status.name == 'Completed' %}bg-success
+                                       {% elif task.status.name == 'Failed' %}bg-danger
+                                       {% elif task.status.name == 'Skipped' %}bg-dark
+                                       {% elif task.status.name == 'In Progress' %}bg-info text-dark
+                                       {% else %}bg-secondary{% endif %}">{{ task.status.name }}</span>
+                </small>
+                <small class="ms-3">Platform: <strong>{{ task.platform_name }}</strong></small>
+                <small class="ms-3">Account: <strong>{{ task.account_username }}</strong></small>
+            </div>
+            <div class="d-flex align-items-center">
+                <a href="/tasks/{{ task.id }}/logs" class="btn btn-sm btn-outline-secondary">Logs</a>
+                {% if task.status.name == 'Waiting' %}
+                    {% if task.goal and task.goal.execution_strategy.name == 'CustomScript' %}
+                        <form action="/tasks/{{ task.id }}/run-execution" method="post" class="d-inline ms-2">
+                            <input type="hidden" name="redirect_url" value="/all-tasks">
+                            <button type="submit" class="btn btn-sm btn-warning">Run Execution Script</button>
+                        </form>
+                    {% else %}
+                        <form action="/tasks/{{ task.id }}/start" method="post" class="d-inline ms-2">
+                            <input type="hidden" name="redirect_url" value="/all-tasks">
+                            <button type="submit" class="btn btn-sm btn-primary">Start (Manual)</button>
+                        </form>
+                    {% endif %}
+
+                    <form action="/tasks/{{ task.id }}/skip" method="post" class="d-inline-flex align-items-center ms-2">
+                        <input type="hidden" name="redirect_url" value="/all-tasks">
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Optional reason...">
+                        <button type="submit" class="btn btn-sm btn-secondary ms-2">Skip</button>
+                    </form>
+                    {% endif %}
+                {% if task.status.name == 'In Progress' %}
+                    {% if task.goal.check_strategy.name == 'CustomScriptCheck' %}
+                        <form action="/tasks/{{ task.id }}/run-check" method="post" class="d-inline ms-2">
+                            <input type="hidden" name="redirect_url" value="/all-tasks">
+                            <button type="submit" class="btn btn-sm btn-info">Run Check Script</button>
+                        </form>
+                    {% else %}
+                        <form action="/tasks/{{ task.id }}/complete" method="post" class="d-inline-flex align-items-center ms-2">
+                            <input type="hidden" name="redirect_url" value="/all-tasks">
+                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Optional notes...">
+                            <button type="submit" class="btn btn-sm btn-success ms-2">Mark Complete</button>
+                        </form>
+                        <form action="/tasks/{{ task.id }}/fail" method="post" class="d-inline-flex align-items-center ms-2">
+                             <input type="hidden" name="redirect_url" value="/all-tasks">
+                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Reason for failure...">
+                            <button type="submit" class="btn btn-sm btn-danger ms-2">Mark Failed</button>
+                        </form>
+                    {% endif %}
+
+                    <form action="/tasks/{{ task.id }}/skip" method="post" class="d-inline-flex align-items-center ms-2">
+                        <input type="hidden" name="redirect_url" value="/all-tasks">
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Optional reason...">
+                        <button type="submit" class="btn btn-sm btn-secondary ms-2">Skip</button>
+                    </form>
+                    {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="list-group-item">
+        <p class="mb-0">No tasks found. Try creating a new <a href="/goals/add">goal</a>!</p>
+    </div>
+    {% endfor %}
+</div>
+<style>
+.account-chip, .platform-chip {
+    display: inline-block;
+    padding: 0.2em 0.7em;
+    border-radius: 999px;
+    font-size: 0.95em;
+    color: #222;
+    font-weight: 500;
+    vertical-align: middle;
+    margin-right: 0.3em;
+}
+.account-chip {
+    background-color: #eee;
+    border: 1px solid #ddd;
+}
+.account-chip {
+    padding: 0.1em 0.6em;
+    font-size: 0.65em;
+}
+.platform-chip {
+    color: #fff;
+    background-color: #bbb;
+    border: none;
+}
+</style>
+<script>
+const pastelColors = [
+    "#FFD6E0", "#D6EFFF", "#FFF6D6", "#D6FFD6", "#E0D6FF", "#FFE0D6", "#D6FFF6",
+    "#F6D6FF", "#D6F6FF", "#FFF0D6", "#D6FFF0", "#F0FFD6", "#FFD6F0", "#F0D6FF"
+];
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+function colorForAccount(account) {
+    if (!account) return "#eee";
+    const idx = hashString(account) % pastelColors.length;
+    return pastelColors[idx];
+}
+document.querySelectorAll('.account-chip').forEach(function(el) {
+    const account = el.getAttribute('data-account');
+    el.style.backgroundColor = colorForAccount(account);
+});
+document.getElementById('group-tasks-btn').addEventListener('click', function() {
+    const tasks = Array.from(document.querySelectorAll('#tasks-list .list-group-item'));
+
+    const grouped = {};
+    tasks.forEach(task => {
+        const platform = task.getAttribute('data-platform') || 'Unknown Platform';
+        const account = task.getAttribute('data-account') || 'Platform-Level';
+        if (!grouped[platform]) grouped[platform] = {};
+        if (!grouped[platform][account]) grouped[platform][account] = [];
+        grouped[platform][account].push(task);
+    });
+
+    const tasksList = document.getElementById('tasks-list');
+    tasksList.innerHTML = '';
+
+    Object.keys(grouped).sort().forEach(platform => {
+        const platformHeader = document.createElement('div');
+        platformHeader.className = 'fw-bold mt-3 mb-2';
+        platformHeader.textContent = platform;
+        tasksList.appendChild(platformHeader);
+    Object.keys(grouped[platform])
+        .sort((a, b) => {
+            if (a === 'Platform-Level') return -1;
+            if (b === 'Platform-Level') return 1;
+            return a.localeCompare(b); // or just a > b ? 1 : -1 for basic sort
+        })
+        .forEach(account => {
+            if(account === 'Platform-Level') {
+            const accountHeader = document.createElement('div');
+            accountHeader.className = 'ms-3 mb-1 text-secondary';
+            accountHeader.textContent = "Platform level tasks:";
+            tasksList.appendChild(accountHeader);
+            }
+            else{
+            const accountHeader = document.createElement('div');
+            accountHeader.className = 'ms-3 mb-1 text-secondary';
+            accountHeader.textContent = account;
+            tasksList.appendChild(accountHeader);
+            }
+
+            grouped[platform][account].forEach(task => {
+                task.classList.add('ms-4');
+                tasksList.appendChild(task);
+            });
+        });
+
+        });
+        this.disabled = true;
+    });
+</script>
+{% endblock %}
