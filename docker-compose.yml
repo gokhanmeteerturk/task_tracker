@@ -7,8 +7,6 @@ services:
       - "8000:8000"
     volumes:
       - ./db:/app/db  # Persist the SQLite DB
-      - ./static:/app/static
-      - ./templates:/app/templates
     environment:
-      - TZ=Europe/Istanbul
+      - TZ=Europe/London
     restart: unless-stopped
