@@ -75,7 +75,7 @@ alembic upgrade head
 ### 1.**Build and Push Your Docker Image to Amazon Web Services ECR**
 
 1.  **Create an ECR Repository**
-    In AWS Console, go to ECR (Elastic Container Registry) and create a new repository (e.g.,�� `task-tracker` ).
+    In AWS Console, go to ECR (Elastic Container Registry) and create a new repository (e.g. `task-tracker` ).
 
 2.  **Authenticate Docker to ECR**
 ```bash
